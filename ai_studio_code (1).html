@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบรับชำระค่าน้ำประปาออนไลน์ - เทศบาลตำบลพระซอง</title>
+    <!-- Tailwind CSS & DaisyUI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.9.4/dist/full.css" rel="stylesheet" type="text/css" />
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts (Sarabun) -->
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- QRCodeJS Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Sarabun', 'sans-serif'],
+                    },
+                    colors: {
+                        gov: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                            800: '#0c4a6e',
+                            900: '#0a3751'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        /* การจัดพิมพ์เอกสารราชการ */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printableReceiptArea, #printableReceiptArea * {
+                visibility: visible;
+            }
+            #printableReceiptArea {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 20px;
+                background: #fff;
+                color: #000;
+                box-shadow: none !important;
+                border: none !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            @page {
+                size: A4 portrait;
+                margin: 10mm;
+            }
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col text-slate-800">
+
+    <!-- HEADER & BRANDING -->
+    <header class="bg-gradient-to-r from-gov-900 via-gov-700 to-sky-800 text-white shadow-lg no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3 text-center md:text-left">
+                <div class="w-12 h-12 bg-white rounded-full p-1.5 shadow-inner flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-faucet-drip text-2xl text-gov-700"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold tracking-tight" id="headerOrgName">เทศบาลตำบลพระซอง</h1>
+                    <p class="text-xs text-sky-100">ระบบบริหารจัดการและรับชำระค่าน้ำประปาออนไลน์ (Waterworks Smart Web App)</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3 text-xs md:text-sm bg-gov-800/60 px-3.5 py-2 rounded-xl border border-sky-400/30 shadow-inner">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>สถานะ: <span class="font-semibold text-emerald-300">พร้อมใช้งาน (LocalStorage)</span></span>
+                </div>
+                <span class="text-sky-400">|</span>
+                <div id="currentDateTime" class="font-medium text-sky-100"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- NAVIGATION TABS -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
+        <div class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+            <div class="flex overflow-x-auto custom-scrollbar space-x-1 sm:space-x-2 py-2">
+                <button onclick="switchTab('tab-dashboard')" id="btn-tab-dashboard" class="nav-tab flex items-center gap-2 px-3.5 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all bg-gov-600 text-white shadow-sm">
+                    <i class="fa-solid fa-chart-pie"></i> แดชบอร์ด
+                </button>
+                <button onclick="switchTab('tab-meter')" id="btn-tab-meter" class="nav-tab flex items-center gap-2 px-3.5 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all text-slate-600 hover:bg-slate-100">
+                    <i class="fa-solid fa-gauge-high"></i> 1. จดมิเตอร์น้ำ
+                </button>
+                <button onclick="switchTab('tab-payment')" id="btn-tab-payment" class="nav-tab flex items-center gap-2 px-3.5 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all text-slate-600 hover:bg-slate-100">
+                    <i class="fa-solid fa-qrcode"></i> 2. รับชำระ & QR Code
+                </button>
+                <button onclick="switchTab('tab-receipt')" id="btn-tab-receipt" class="nav-tab flex items-center gap-2 px-3.5 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all text-slate-600 hover:bg-slate-100">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> 3. พิมพ์ใบเสร็จ
+                </button>
+                <button onclick="switchTab('tab-audit')" id="btn-tab-audit" class="nav-tab flex items-center gap-2 px-3.5 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all text-slate-600 hover:bg-slate-100">
+                    <i class="fa-solid fa-list-check"></i> 4. Audit Log & บัญชี
+                </button>
+                <button onclick="switchTab('tab-customers')" id="btn-tab-customers" class="nav-tab flex items-center gap-2 px-3.5 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all text-slate-600 hover:bg-slate-100">
+                    <i class="fa-solid fa-users"></i> 5. ทะเบียนผู้ใช้น้ำ
+                </button>
+                <button onclick="switchTab('tab-settings')" id="btn-tab-settings" class="nav-tab flex items-center gap-2 px-3.5 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all text-slate-600 hover:bg-slate-100">
+                    <i class="fa-solid fa-gear"></i> 6. ตั้งค่าระบบ
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTAINER -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 no-print">
+
+        <!-- ==================== TAB 0: DASHBOARD ==================== -->
+        <section id="tab-dashboard" class="tab-content space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 mb-1">ยอดรับชำระประจำวัน</p>
+                        <h3 class="text-2xl font-bold text-emerald-600 font-mono" id="dashTodayIncome">0.00 ฿</h3>
+                        <p class="text-[10px] text-slate-400 mt-1">อัปเดตอัตโนมัติ</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid fa-wallet"></i>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 mb-1">จำนวนผู้ชำระแล้ว</p>
+                        <h3 class="text-2xl font-bold text-gov-700 font-mono" id="dashPaidCount">0 ราย</h3>
+                        <p class="text-[10px] text-emerald-500 mt-1"><i class="fa-solid fa-check-circle"></i> ออกใบเสร็จสมบูรณ์</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-gov-50 text-gov-600 flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid fa-user-check"></i>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 mb-1">ค้างชำระคงเหลือ</p>
+                        <h3 class="text-2xl font-bold text-amber-600 font-mono" id="dashUnpaidCount">0 ราย</h3>
+                        <p class="text-[10px] text-amber-500 mt-1"><i class="fa-solid fa-clock"></i> รอรับชำระ</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 mb-1">รายรับรวมทั้งหมด</p>
+                        <h3 class="text-2xl font-bold text-sky-700 font-mono" id="dashMonthlyIncome">0.00 ฿</h3>
+                        <p class="text-[10px] text-slate-400 mt-1">ยอดรวมในระบบ</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid fa-chart-column"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                    <h2 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-bolt text-amber-500"></i> ทางลัดการใช้งานระบบ (Quick Actions)
+                    </h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <button onclick="switchTab('tab-meter')" class="p-4 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl transition-all text-left group">
+                            <div class="w-10 h-10 rounded-lg bg-sky-600 text-white flex items-center justify-center text-lg mb-2 shadow group-hover:scale-105 transition-transform">
+                                <i class="fa-solid fa-gauge"></i>
+                            </div>
+                            <h3 class="font-bold text-sky-900 text-sm">จดมิเตอร์น้ำ</h3>
+                            <p class="text-xs text-slate-500 mt-1">บันทึกเลขและคำนวณค่าน้ำประปา</p>
+                        </button>
+
+                        <button onclick="switchTab('tab-payment')" class="p-4 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-all text-left group">
+                            <div class="w-10 h-10 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-lg mb-2 shadow group-hover:scale-105 transition-transform">
+                                <i class="fa-solid fa-qrcode"></i>
+                            </div>
+                            <h3 class="font-bold text-emerald-900 text-sm">รับชำระ PromptPay</h3>
+                            <p class="text-xs text-slate-500 mt-1">สแกน QR Code รับเงินผ่านมือถือ</p>
+                        </button>
+
+                        <button onclick="exportToCSV()" class="p-4 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl transition-all text-left group">
+                            <div class="w-10 h-10 rounded-lg bg-purple-600 text-white flex items-center justify-center text-lg mb-2 shadow group-hover:scale-105 transition-transform">
+                                <i class="fa-solid fa-file-csv"></i>
+                            </div>
+                            <h3 class="font-bold text-purple-900 text-sm">ส่งออก Excel/CSV</h3>
+                            <p class="text-xs text-slate-500 mt-1">ดาวน์โหลดรายงานส่งฝ่ายการเงิน</p>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-gov-900 text-white p-6 rounded-xl shadow-md flex flex-col justify-between">
+                    <div>
+                        <h3 class="font-bold text-base mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-calculator text-sky-300"></i> อัตราค่าน้ำประปาปัจจุบัน
+                        </h3>
+                        <p class="text-xs text-sky-200 mb-4" id="dashOrgNotice">คำนวณอัตราก้าวหน้าตามเทศบัญญัติ</p>
+
+                        <ul class="space-y-2 text-xs border-t border-sky-800/80 pt-3">
+                            <li class="flex justify-between">
+                                <span class="text-sky-200">• 1 - 10 หน่วยแรก:</span>
+                                <span class="font-mono font-bold text-emerald-400" id="dashRateTier1">5.00 บาท/หน่วย</span>
+                            </li>
+                            <li class="flex justify-between">
+                                <span class="text-sky-200">• 11 - 20 หน่วย:</span>
+                                <span class="font-mono font-bold text-emerald-400" id="dashRateTier2">8.00 บาท/หน่วย</span>
+                            </li>
+                            <li class="flex justify-between">
+                                <span class="text-sky-200">• เกินกว่า 20 หน่วย:</span>
+                                <span class="font-mono font-bold text-emerald-400" id="dashRateTier3">10.00 บาท/หน่วย</span>
+                            </li>
+                            <li class="flex justify-between border-t border-sky-800/80 pt-2 text-amber-300">
+                                <span>• ค่าบริการรายเดือนคงที่:</span>
+                                <span class="font-mono font-bold" id="dashServiceFee">10.00 บาท/เดือน</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-sky-800/80 text-[11px] text-sky-300 flex justify-between items-center">
+                        <span>สามารถปรับเปลี่ยนอัตราได้ที่แท็บตั้งค่า</span>
+                        <button onclick="switchTab('tab-settings')" class="underline hover:text-white">แก้ไข</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 1: METER RECORDING ==================== -->
+        <section id="tab-meter" class="tab-content hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Customer Search & Selection -->
+                <div class="lg:col-span-1 space-y-4">
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                        <h2 class="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-magnifying-glass text-gov-600"></i> ค้นหาผู้ใช้น้ำประปา
+                        </h2>
+                        <div class="space-y-3">
+                            <div class="relative">
+                                <input type="text" id="meterSearchInput" onkeyup="filterMeterCustomers()" placeholder="ค้นหาชื่อ / รหัสผู้ใช้น้ำ / หมู่..." class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-gov-500">
+                                <i class="fa-solid fa-search absolute left-3 top-3 text-slate-400 text-xs"></i>
+                            </div>
+
+                            <div class="max-h-72 overflow-y-auto custom-scrollbar border border-slate-200 rounded-lg divide-y divide-slate-100" id="meterCustomerList">
+                                <!-- JS Populated -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Selected Customer Box -->
+                    <div class="bg-sky-50 border border-sky-200 p-4 rounded-xl hidden" id="selectedCustomerCard">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="bg-sky-200 text-sky-800 text-xs px-2.5 py-0.5 rounded-full font-bold" id="cardMoo">หมู่ที่ -</span>
+                            <span class="text-xs text-slate-500 font-mono" id="cardMeterNo">มิเตอร์: -</span>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-base" id="cardName">เลือกผู้ใช้น้ำ</h3>
+                        <p class="text-xs text-slate-600 mt-1"><i class="fa-solid fa-id-card text-gov-600"></i> รหัสผู้ใช้น้ำ: <span class="font-mono font-semibold" id="cardCusId">-</span></p>
+                        <p class="text-xs text-slate-600"><i class="fa-solid fa-location-dot text-gov-600"></i> ที่อยู่: <span id="cardAddress">-</span></p>
+                    </div>
+                </div>
+
+                <!-- Reading Form & Calculation -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white p-5 sm:p-6 rounded-xl border border-slate-200 shadow-sm h-full flex flex-col justify-between">
+                        <div>
+                            <div class="border-b border-slate-200 pb-3 mb-4 flex justify-between items-center">
+                                <div>
+                                    <h2 class="text-lg font-bold text-slate-800">บันทึกการอ่านมิเตอร์น้ำประจำเดือน</h2>
+                                    <p class="text-xs text-slate-500">ระบบคำนวณค่าน้ำประปาอัตโนมัติ</p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" id="billBillingMonth" value="มีนาคม 2569" class="text-xs font-semibold px-2 py-1 bg-amber-50 text-amber-900 border border-amber-200 rounded-lg">
+                                </div>
+                            </div>
+
+                            <form id="meterForm" onsubmit="handleMeterSubmit(event)" class="space-y-4">
+                                <input type="hidden" id="formCusId">
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-600 mb-1">เลขมิเตอร์ครั้งก่อน (หน่วย)</label>
+                                        <input type="number" id="prevReading" readonly class="w-full p-2.5 bg-slate-100 border border-slate-300 rounded-lg text-sm font-mono font-bold text-slate-700">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-600 mb-1">เลขมิเตอร์ครั้งนี้ <span class="text-rose-500">*</span></label>
+                                        <input type="number" id="currReading" required step="any" oninput="calculateWaterBill()" placeholder="ใส่ตัวเลขมาตรวัดที่อ่านได้..." class="w-full p-2.5 border border-sky-400 focus:ring-2 focus:ring-sky-500 rounded-lg text-sm font-mono font-bold text-sky-900">
+                                    </div>
+                                </div>
+
+                                <!-- Breakdown Breakdown -->
+                                <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-2 text-sm mt-4">
+                                    <h4 class="font-bold text-slate-700 text-xs uppercase tracking-wider border-b pb-1">สรุปยอดการคำนวณ</h4>
+                                    <div class="flex justify-between text-xs text-slate-600">
+                                        <span>จำนวนหน่วยที่ใช้น้ำ:</span>
+                                        <span class="font-mono font-bold text-slate-800"><span id="unitsUsed">0</span> หน่วย</span>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-slate-600">
+                                        <span>ค่าน้ำประปา (ตามอัตราก้าวหน้า):</span>
+                                        <span class="font-mono"><span id="waterBaseCost">0.00</span> บาท</span>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-slate-600">
+                                        <span>ค่าบริการรายเดือน (คงที่):</span>
+                                        <span class="font-mono"><span id="serviceFeeDisplay">10.00</span> บาท</span>
+                                    </div>
+                                    <div class="border-t border-slate-200 pt-2 flex justify-between items-center text-base font-bold text-gov-900">
+                                        <span>รวมจำนวนเงินสุทธิ:</span>
+                                        <span class="text-xl font-mono text-emerald-600"><span id="totalBillAmount">0.00</span> ฿</span>
+                                    </div>
+                                </div>
+
+                                <button type="submit" id="btnSaveMeter" disabled class="w-full bg-gov-600 hover:bg-gov-700 text-white font-bold py-3 px-4 rounded-lg text-sm transition-all shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-floppy-disk"></i> บันทึกค่าน้ำเข้าสู่รายการรอชำระ
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Alert Box -->
+                        <div id="meterAlert" class="mt-4 hidden p-3 rounded-lg text-xs font-semibold"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 2: PAYMENT & PROMPTPAY QR ==================== -->
+        <section id="tab-payment" class="tab-content hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Unpaid Bills List -->
+                <div class="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-4">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-800">รายการค่าน้ำรอชำระเงิน</h2>
+                            <p class="text-xs text-slate-500">เลือกรายการที่ต้องการรับชำระ</p>
+                        </div>
+                        <input type="text" id="paymentSearchInput" onkeyup="renderUnpaidTable()" placeholder="ค้นหาชื่อ / รหัส..." class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-gov-500">
+                    </div>
+
+                    <div class="overflow-x-auto custom-scrollbar border border-slate-200 rounded-lg">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                                    <th class="p-2.5">รหัส/ชื่อผู้ใช้</th>
+                                    <th class="p-2.5">หมู่</th>
+                                    <th class="p-2.5">หน่วย</th>
+                                    <th class="p-2.5 text-right">ยอดรวม (บาท)</th>
+                                    <th class="p-2.5 text-center">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="unpaidBillsTable" class="divide-y divide-slate-100">
+                                <!-- JS Populated -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- PromptPay QR Terminal -->
+                <div class="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="text-center border-b border-slate-200 pb-3 mb-4">
+                            <h2 class="text-base font-bold text-slate-800">Thai QR PromptPay ทางการ</h2>
+                            <p class="text-xs text-slate-500" id="qrTerminalHeader">รหัส PromptPay: 0994000123456</p>
+                        </div>
+
+                        <div id="qrTerminalSelectPrompt" class="text-center py-12 text-slate-400">
+                            <i class="fa-solid fa-qrcode text-5xl mb-2 text-slate-300"></i>
+                            <p class="text-xs"><- กรุณาเลือกรายการค่าน้ำประปาทางด้านซ้าย</p>
+                        </div>
+
+                        <!-- Active Payment Box -->
+                        <div id="qrActiveBox" class="hidden text-center space-y-4">
+                            <div class="bg-sky-50 p-3 rounded-lg border border-sky-100 text-left">
+                                <p class="text-xs text-slate-500">ผู้ชำระ: <strong id="qrCusName" class="text-slate-800">-</strong></p>
+                                <p class="text-xs text-slate-500">รหัสผู้ใช้: <span id="qrCusId" class="font-mono font-semibold">-</span> | ประจำเดือน: <span id="qrMonth">-</span></p>
+                                <p class="text-sm font-bold text-gov-900 mt-1">ยอดชำระทั้งสิ้น: <span id="qrAmount" class="text-xl font-mono text-emerald-600">0.00</span> บาท</p>
+                            </div>
+
+                            <!-- Generated QR Code with valid EMVCo Checksum -->
+                            <div class="inline-block p-4 bg-white border-2 border-gov-600 rounded-2xl shadow-md">
+                                <div class="flex items-center justify-center gap-1.5 mb-2 bg-blue-900 text-white py-1 px-3 rounded-md text-xs font-bold">
+                                    <i class="fa-solid fa-qrcode"></i> Thai QR Payment
+                                </div>
+                                <div id="qrcodeCanvas" class="flex justify-center my-2"></div>
+                                <p class="text-[10px] text-slate-500 mt-1">สแกนจ่ายผ่าน Mobile Banking ได้ทุกธนาคาร</p>
+                                <p class="text-[9px] text-emerald-600 font-mono mt-0.5">✓ ตรวจสอบ CRC16 Checksum ถูกต้อง</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Actions -->
+                    <div id="qrActionBox" class="hidden mt-4 pt-3 border-t border-slate-200 space-y-2">
+                        <button onclick="confirmPaymentAndIssueReceipt()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm shadow transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-circle-check"></i> ยืนยันการชำระเงินและออกใบเสร็จ
+                        </button>
+                        <button onclick="cancelQRSelection()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 px-4 rounded-lg text-xs transition-all">
+                            ยกเลิก
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 3: RECEIPT & PRINTING ==================== -->
+        <section id="tab-receipt" class="tab-content hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Receipt Selection Sidebar -->
+                <div class="lg:col-span-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                    <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-receipt text-gov-600"></i> เลือกใบเสร็จรับเงิน
+                    </h2>
+                    <input type="text" id="receiptSearchInput" onkeyup="renderPaidReceiptList()" placeholder="ค้นหาเลขใบเสร็จ / ชื่อ..." class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs">
+                    
+                    <div class="max-h-[500px] overflow-y-auto custom-scrollbar border border-slate-200 rounded-lg divide-y divide-slate-100" id="paidReceiptsList">
+                        <!-- JS Populated -->
+                    </div>
+                </div>
+
+                <!-- Printable Receipt -->
+                <div class="lg:col-span-8 space-y-4">
+                    <div class="bg-slate-100 p-2.5 rounded-xl flex flex-wrap justify-between items-center gap-2 border border-slate-200">
+                        <span class="text-xs font-semibold text-slate-600 px-2">ตัวอย่างใบเสร็จรับเงินทางการ (Official Receipt)</span>
+                        <div class="flex gap-2">
+                            <button onclick="window.print()" class="bg-gov-700 hover:bg-gov-800 text-white text-xs font-bold py-2 px-4 rounded-lg shadow flex items-center gap-1.5 transition-all">
+                                <i class="fa-solid fa-print"></i> สั่งพิมพ์ใบเสร็จ (Print Receipt)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- PRINT CONTAINER -->
+                    <div id="printableReceiptArea" class="bg-white p-6 sm:p-8 rounded-xl border border-slate-300 shadow-md max-w-3xl mx-auto">
+                        <div class="text-center space-y-1 border-b-2 border-slate-800 pb-4">
+                            <div class="w-16 h-16 mx-auto mb-1">
+                                <i class="fa-solid fa-landmark-dome text-4xl text-gov-800"></i>
+                            </div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-wide">ใบเสร็จรับเงิน</h2>
+                            <h3 class="text-base font-semibold text-slate-800" id="recOrgFullName">เทศบาลตำบลพระซอง อำเภอนาแก จังหวัดนครพนม</h3>
+                            <p class="text-xs text-slate-600">เลขประจำตัวผู้เสียภาษี/พร้อมเพย์: <span id="recPromptPayDisplay">0994000123456</span></p>
+                        </div>
+
+                        <div class="grid grid-cols-2 text-xs py-3 gap-2 border-b border-slate-200 font-mono">
+                            <div>
+                                <p><strong>เล่มที่:</strong> <span id="recBookNo">2569/01</span></p>
+                                <p><strong>เลขที่ใบเสร็จ:</strong> <span id="recNo" class="font-bold text-gov-900">REC-2569/0001</span></p>
+                                <p><strong>รหัสผู้ใช้น้ำ:</strong> <span id="recCusId">CUS-001</span></p>
+                            </div>
+                            <div class="text-right">
+                                <p><strong>วันที่ออกใบเสร็จ:</strong> <span id="recDate">-</span></p>
+                                <p><strong>รอบเดือน:</strong> <span id="recMonth">-</span></p>
+                                <p><strong>ช่องทางชำระ:</strong> <span id="recChannel" class="font-semibold text-emerald-700">Thai QR PromptPay</span></p>
+                            </div>
+                        </div>
+
+                        <div class="py-3 text-xs border-b border-slate-200">
+                            <p><strong>ได้รับเงินจาก:</strong> <span id="recCusName" class="text-sm font-bold">-</span></p>
+                            <p><strong>ที่อยู่/หมู่:</strong> <span id="recAddress">-</span> | <strong>เลขมิเตอร์:</strong> <span id="recMeterNo">-</span></p>
+                        </div>
+
+                        <!-- Table Specs -->
+                        <div class="py-3">
+                            <table class="w-full text-left text-xs border-collapse">
+                                <thead>
+                                    <tr class="border-b border-slate-400 bg-slate-50 font-bold">
+                                        <th class="p-2">รายการ (Description)</th>
+                                        <th class="p-2 text-center">มิเตอร์เดิม</th>
+                                        <th class="p-2 text-center">มิเตอร์ใหม่</th>
+                                        <th class="p-2 text-center">หน่วยที่ใช้</th>
+                                        <th class="p-2 text-right">จำนวนเงิน (บาท)</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200">
+                                    <tr>
+                                        <td class="p-2">ค่าน้ำประปาประจำเดือน</td>
+                                        <td class="p-2 text-center font-mono" id="recPrev">0</td>
+                                        <td class="p-2 text-center font-mono" id="recCurr">0</td>
+                                        <td class="p-2 text-center font-mono font-bold" id="recUnits">0</td>
+                                        <td class="p-2 text-right font-mono" id="recWaterCost">0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="p-2" colspan="4">ค่าบริการรายเดือน / ค่าดูแลมาตรวัดน้ำ</td>
+                                        <td class="p-2 text-right font-mono" id="recServiceCost">10.00</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="border-t-2 border-slate-800 font-bold bg-slate-50">
+                                        <td class="p-2 text-right" colspan="4">รวมเงินชำระทั้งสิ้น (Total Paid):</td>
+                                        <td class="p-2 text-right font-mono text-sm text-gov-900" id="recTotalCost">0.00 บาท</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <!-- Thai Baht Text with Satang -->
+                        <div class="bg-slate-50 p-2.5 rounded border border-slate-200 text-xs font-semibold mb-6 flex justify-between">
+                            <span>(จำนวนเงินตัวหนังสือ):</span>
+                            <span id="recBahtText" class="text-gov-900 font-bold">(-บาทถ้วน-)</span>
+                        </div>
+
+                        <!-- Signatures -->
+                        <div class="grid grid-cols-2 gap-8 text-center text-xs pt-4">
+                            <div>
+                                <p class="mb-8">ลงชื่อ..........................................................ผู้จ่ายเงิน</p>
+                                <p>( <span id="recSignPayer">-</span> )</p>
+                            </div>
+                            <div>
+                                <p class="mb-8">ลงชื่อ..........................................................ผู้รับเงิน/เจ้าหน้าที่</p>
+                                <p>( เจ้าพนักงานจัดเก็บรายได้ )</p>
+                                <p class="text-[10px] text-slate-500 mt-1" id="recSignOrgTitle">เทศบาลตำบลพระซอง</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 4: AUDIT LOG & RECEIPT CONTROL ==================== -->
+        <section id="tab-audit" class="tab-content hidden">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-800">ระบบควบคุมใบเสร็จ & Audit Trail Log</h2>
+                        <p class="text-xs text-slate-500">ตรวจสอบประวัติใบเสร็จรับเงิน การยกเลิกรายการ และส่งออกไฟล์ CSV</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="exportToCSV()" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold py-2 px-3 rounded-lg shadow flex items-center gap-1.5 transition-all">
+                            <i class="fa-solid fa-file-csv"></i> Export CSV
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Audit Table -->
+                <div class="overflow-x-auto custom-scrollbar border border-slate-200 rounded-lg">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                                <th class="p-3">เลขที่ใบเสร็จ</th>
+                                <th class="p-3">วัน-เวลา ชำระ</th>
+                                <th class="p-3">ผู้ใช้น้ำ</th>
+                                <th class="p-3">หมู่บ้าน</th>
+                                <th class="p-3 text-right">จำนวนเงิน</th>
+                                <th class="p-3 text-center">สถานะ</th>
+                                <th class="p-3 text-center">จัดการ / ยกเลิก</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditTableBody" class="divide-y divide-slate-100">
+                            <!-- JS Populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 5: CUSTOMER DIRECTORY ==================== -->
+        <section id="tab-customers" class="tab-content hidden">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-800">ทะเบียนผู้ใช้บริการค่าน้ำประปา</h2>
+                        <p class="text-xs text-slate-500">จัดการข้อมูลผู้ใช้น้ำ แยกตามหมู่บ้าน (หมู่ 1 - หมู่ 10)</p>
+                    </div>
+                    <button onclick="openAddCustomerModal()" class="bg-gov-600 hover:bg-gov-700 text-white text-xs font-bold py-2 px-3.5 rounded-lg shadow flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-plus"></i> เพิ่มผู้ใช้น้ำใหม่
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto custom-scrollbar border border-slate-200 rounded-lg">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                                <th class="p-3">รหัสผู้ใช้</th>
+                                <th class="p-3">ชื่อ - นามสกุล</th>
+                                <th class="p-3">หมู่ที่</th>
+                                <th class="p-3">เลขมาตรวัด (มิเตอร์)</th>
+                                <th class="p-3">อ่านครั้งล่าสุด</th>
+                                <th class="p-3 text-center">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customerDirectoryBody" class="divide-y divide-slate-100">
+                            <!-- JS Populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 6: SETTINGS & BACKUP ==================== -->
+        <section id="tab-settings" class="tab-content hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Tariff & Info Settings -->
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <h2 class="text-base font-bold text-slate-800 flex items-center gap-2 border-b pb-2">
+                        <i class="fa-solid fa-sliders text-gov-600"></i> ตั้งค่าระบบและอัตราค่าน้ำ
+                    </h2>
+                    
+                    <form onsubmit="saveAppSettings(event)" class="space-y-3 text-xs">
+                        <div>
+                            <label class="block font-semibold mb-1">ชื่อหน่วยงาน / เทศบาล</label>
+                            <input type="text" id="setOrgName" required class="w-full p-2 border border-slate-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">เลขประจำตัวผู้เสียภาษี / PromptPay ID (เบอร์โทร 10 หลัก หรือ เลขภาษี 13 หลัก)</label>
+                            <input type="text" id="setPromptPayId" required class="w-full p-2 border border-slate-300 rounded-lg font-mono">
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2 pt-2">
+                            <div>
+                                <label class="block font-semibold mb-1">ขั้น 1-10 (บ./หน่วย)</label>
+                                <input type="number" step="0.5" id="setTier1" required class="w-full p-2 border border-slate-300 rounded-lg font-mono">
+                            </div>
+                            <div>
+                                <label class="block font-semibold mb-1">ขั้น 11-20 (บ./หน่วย)</label>
+                                <input type="number" step="0.5" id="setTier2" required class="w-full p-2 border border-slate-300 rounded-lg font-mono">
+                            </div>
+                            <div>
+                                <label class="block font-semibold mb-1">ขั้น 20+ (บ./หน่วย)</label>
+                                <input type="number" step="0.5" id="setTier3" required class="w-full p-2 border border-slate-300 rounded-lg font-mono">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold mb-1">ค่าบริการรายเดือนคงที่ (บาท)</label>
+                            <input type="number" step="0.5" id="setServiceFee" required class="w-full p-2 border border-slate-300 rounded-lg font-mono">
+                        </div>
+
+                        <button type="submit" class="btn btn-sm btn-primary w-full mt-2">
+                            <i class="fa-solid fa-floppy-disk"></i> บันทึกการตั้งค่า
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Database Backup & Restore -->
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-800 flex items-center gap-2 border-b pb-2">
+                            <i class="fa-solid fa-database text-gov-600"></i> สำรอง & กู้คืนข้อมูล (Database Backup)
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-2 mb-4">
+                            ข้อมูลทั้งหมดถูกบันทึกไว้ในเบราว์เซอร์ของเครื่องนี้ (LocalStorage) คุณสามารถดาวน์โหลดไฟล์สำรองข้อมูลเพื่อความปลอดภัย หรือโอนย้ายไปเครื่องอื่นได้
+                        </p>
+
+                        <div class="space-y-3">
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                                <h4 class="font-bold text-xs text-slate-800 mb-1">1. ดาวน์โหลดไฟล์สำรองข้อมูล (.json)</h4>
+                                <button onclick="downloadJsonBackup()" class="btn btn-sm btn-outline text-xs w-full">
+                                    <i class="fa-solid fa-download"></i> สำรองข้อมูลทั้งระบบ (Download Backup)
+                                </button>
+                            </div>
+
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                                <h4 class="font-bold text-xs text-slate-800 mb-1">2. นำเข้าไฟล์สำรองข้อมูล (.json)</h4>
+                                <input type="file" id="importJsonFileInput" accept=".json" class="file-input file-input-bordered file-input-xs w-full" onchange="importJsonBackup(event)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-200">
+                        <button onclick="resetDefaultData()" class="btn btn-sm btn-ghost text-rose-600 w-full text-xs">
+                            <i class="fa-solid fa-rotate-left"></i> รีเซ็ตเป็นข้อมูลตัวอย่างเริ่มต้น
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL: Cancel/Void Receipt -->
+    <dialog id="voidModal" class="modal">
+        <div class="modal-box bg-white max-w-md">
+            <h3 class="font-bold text-lg text-rose-700 flex items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation"></i> ยืนยันยกเลิกใบเสร็จรับเงิน (Void)
+            </h3>
+            <p class="py-2 text-xs text-slate-600">
+                การยกเลิกใบเสร็จเลขที่: <span id="voidTargetRecNo" class="font-bold font-mono text-slate-800">-</span> 
+                จะคืนสถานะลูกหนี้ค้างชำระ และบันทึก Audit Log ไว้เป็นหลักฐาน
+            </p>
+            <div class="mt-3">
+                <label class="block text-xs font-semibold text-slate-700 mb-1">เหตุผลในการยกเลิกใบเสร็จ <span class="text-rose-500">*</span></label>
+                <textarea id="voidReasonInput" required placeholder="ระบุเหตุผล เช่น คำนวณมิเตอร์ผิด, พิมพ์ผิดคน..." class="w-full p-2 border border-slate-300 rounded-lg text-xs h-20 focus:ring-2 focus:ring-rose-500"></textarea>
+            </div>
+            <div class="modal-action">
+                <form method="dialog">
+                    <button class="btn btn-sm btn-ghost">ปิด</button>
+                </form>
+                <button onclick="confirmVoidReceipt()" class="btn btn-sm btn-error text-white">ยืนยันยกเลิกใบเสร็จ</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- MODAL: Add New Customer -->
+    <dialog id="addCustomerModal" class="modal">
+        <div class="modal-box bg-white max-w-lg">
+            <h3 class="font-bold text-base text-slate-800 mb-3">ลงทะเบียนผู้ใช้น้ำประปาใหม่</h3>
+            <form id="addCustomerForm" onsubmit="handleAddCustomerSubmit(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-semibold mb-1">ชื่อ - นามสกุล <span class="text-rose-500">*</span></label>
+                    <input type="text" id="newCusName" required placeholder="นาย/นาง/นางสาว..." class="w-full p-2 border border-slate-300 rounded-lg">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold mb-1">หมู่ที่ <span class="text-rose-500">*</span></label>
+                        <select id="newCusMoo" required class="w-full p-2 border border-slate-300 rounded-lg">
+                            <option value="1">หมู่ 1</option>
+                            <option value="2">หมู่ 2</option>
+                            <option value="3">หมู่ 3</option>
+                            <option value="4">หมู่ 4</option>
+                            <option value="5">หมู่ 5</option>
+                            <option value="6">หมู่ 6</option>
+                            <option value="7">หมู่ 7</option>
+                            <option value="8">หมู่ 8</option>
+                            <option value="9">หมู่ 9</option>
+                            <option value="10">หมู่ 10</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1">เลขมาตรวัด (มิเตอร์) <span class="text-rose-500">*</span></label>
+                        <input type="text" id="newCusMeter" required placeholder="M-XXXX" class="w-full p-2 border border-slate-300 rounded-lg">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">เลขมิเตอร์เริ่มต้น</label>
+                    <input type="number" id="newCusInitMeter" value="0" min="0" class="w-full p-2 border border-slate-300 rounded-lg font-mono">
+                </div>
+                <div class="modal-action">
+                    <button type="button" onclick="document.getElementById('addCustomerModal').close()" class="btn btn-sm btn-ghost">ยกเลิก</button>
+                    <button type="submit" class="btn btn-sm btn-primary">บันทึกข้อมูล</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-800 text-slate-400 text-xs py-4 text-center mt-auto border-t border-slate-700 no-print">
+        <p>© 2569 <span id="footerOrgName">เทศบาลตำบลพระซอง อำเภอนาแก จังหวัดนครพนม</span> - ระบบรับชำระค่าน้ำประปาออนไลน์</p>
+    </footer>
+
+    <!-- JAVASCRIPT APP LOGIC -->
+    <script>
+        // Default Seed Settings
+        const DEFAULT_SETTINGS = {
+            orgName: "เทศบาลตำบลพระซอง อำเภอนาแก จังหวัดนครพนม",
+            promptPayId: "0994000123456",
+            tier1: 5.0,
+            tier2: 8.0,
+            tier3: 10.0,
+            serviceFee: 10.0
+        };
+
+        const SEED_CUSTOMERS = [
+            { id: 'CUS-001', name: 'นายสมชาย ใจดี', moo: 1, address: '123 หมู่ 1 ต.พระซอง', meterNo: 'M-1001', lastReading: 100 },
+            { id: 'CUS-002', name: 'นางสมศรี มีสุข', moo: 1, address: '45 หมู่ 1 ต.พระซอง', meterNo: 'M-1002', lastReading: 215 },
+            { id: 'CUS-003', name: 'นายวิชัย รักชาติ', moo: 2, address: '88 หมู่ 2 ต.พระซอง', meterNo: 'M-2001', lastReading: 430 },
+            { id: 'CUS-004', name: 'นางสาวบุญส่ง เจริญดี', moo: 3, address: '12 หมู่ 3 ต.พระซอง', meterNo: 'M-3001', lastReading: 75 },
+            { id: 'CUS-005', name: 'นายประเสริฐ มั่นคง', moo: 4, address: '9/1 หมู่ 4 ต.พระซอง', meterNo: 'M-4001', lastReading: 310 }
+        ];
+
+        const SEED_BILLS = [
+            { id: 'BILL-001', cusId: 'CUS-002', name: 'นางสมศรี มีสุข', moo: 1, month: 'มีนาคม 2569', prevReading: 215, currReading: 240, units: 25, waterCost: 180, serviceCost: 10, totalAmount: 190 },
+            { id: 'BILL-002', cusId: 'CUS-004', name: 'นางสาวบุญส่ง เจริญดี', moo: 3, month: 'มีนาคม 2569', prevReading: 75, currReading: 90, units: 15, waterCost: 90, serviceCost: 10, totalAmount: 100 }
+        ];
+
+        // Global State synchronized with LocalStorage
+        let appSettings = JSON.parse(localStorage.getItem('water_settings')) || DEFAULT_SETTINGS;
+        let customers = JSON.parse(localStorage.getItem('water_customers')) || SEED_CUSTOMERS;
+        let pendingBills = JSON.parse(localStorage.getItem('water_bills')) || SEED_BILLS;
+        let receipts = JSON.parse(localStorage.getItem('water_receipts')) || [];
+
+        let activeSelectedCus = null;
+        let activeSelectedBillForPayment = null;
+        let selectedReceiptForView = null;
+        let voidTargetRecNoGlobal = null;
+
+        window.onload = function() {
+            updateClock();
+            setInterval(updateClock, 1000);
+            applySettingsToUI();
+            renderMeterCustomerList();
+            renderUnpaidTable();
+            renderPaidReceiptList();
+            renderAuditTable();
+            renderCustomerDirectory();
+            updateKPIs();
+        };
+
+        function saveDataToLocalStorage() {
+            localStorage.setItem('water_settings', JSON.stringify(appSettings));
+            localStorage.setItem('water_customers', JSON.stringify(customers));
+            localStorage.setItem('water_bills', JSON.stringify(pendingBills));
+            localStorage.setItem('water_receipts', JSON.stringify(receipts));
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const thaiDate = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+            const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('currentDateTime').innerText = `${thaiDate} | ${timeStr} น.`;
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-tab').forEach(el => {
+                el.classList.remove('bg-gov-600', 'text-white', 'shadow-sm');
+                el.classList.add('text-slate-600', 'hover:bg-slate-100');
+            });
+
+            document.getElementById(tabId).classList.remove('hidden');
+            const btn = document.getElementById('btn-' + tabId);
+            if (btn) {
+                btn.classList.add('bg-gov-600', 'text-white', 'shadow-sm');
+                btn.classList.remove('text-slate-600', 'hover:bg-slate-100');
+            }
+        }
+
+        // ==================== CALCULATION & TARIFF ====================
+        function calculateProgressiveCost(units) {
+            const t1 = appSettings.tier1;
+            const t2 = appSettings.tier2;
+            const t3 = appSettings.tier3;
+
+            let waterCost = 0;
+            if (units <= 10) {
+                waterCost = units * t1;
+            } else if (units <= 20) {
+                waterCost = (10 * t1) + ((units - 10) * t2);
+            } else {
+                waterCost = (10 * t1) + (10 * t2) + ((units - 20) * t3);
+            }
+            return waterCost;
+        }
+
+        function calculateWaterBill() {
+            if (!activeSelectedCus) return;
+
+            const prev = parseFloat(document.getElementById('prevReading').value) || 0;
+            const currInput = document.getElementById('currReading').value;
+            const curr = parseFloat(currInput);
+            const btnSave = document.getElementById('btnSaveMeter');
+
+            if (isNaN(curr) || curr < prev) {
+                document.getElementById('unitsUsed').innerText = '0';
+                document.getElementById('waterBaseCost').innerText = '0.00';
+                document.getElementById('totalBillAmount').innerText = '0.00';
+                btnSave.disabled = true;
+                return;
+            }
+
+            const units = Math.round((curr - prev) * 100) / 100;
+            const waterCost = calculateProgressiveCost(units);
+            const total = waterCost + appSettings.serviceFee;
+
+            document.getElementById('unitsUsed').innerText = units;
+            document.getElementById('waterBaseCost').innerText = waterCost.toFixed(2);
+            document.getElementById('serviceFeeDisplay').innerText = appSettings.serviceFee.toFixed(2);
+            document.getElementById('totalBillAmount').innerText = total.toFixed(2);
+            btnSave.disabled = false;
+        }
+
+        // ==================== TAB 1: METER LOGIC ====================
+        function renderMeterCustomerList() {
+            const listContainer = document.getElementById('meterCustomerList');
+            const search = document.getElementById('meterSearchInput').value.toLowerCase();
+            
+            const filtered = customers.filter(c => 
+                c.name.toLowerCase().includes(search) || 
+                c.id.toLowerCase().includes(search) || 
+                c.meterNo.toLowerCase().includes(search) ||
+                c.moo.toString().includes(search)
+            );
+
+            if (filtered.length === 0) {
+                listContainer.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">ไม่พบรายชื่อผู้ใช้น้ำ</div>`;
+                return;
+            }
+
+            listContainer.innerHTML = filtered.map(c => `
+                <div onclick="selectCustomerForMeter('${c.id}')" class="p-2.5 hover:bg-sky-50 cursor-pointer transition-all flex justify-between items-center text-xs">
+                    <div>
+                        <div class="font-bold text-slate-800">${c.name}</div>
+                        <div class="text-[11px] text-slate-500">รหัส: ${c.id} | หมู่ ${c.moo}</div>
+                    </div>
+                    <span class="font-mono bg-slate-100 px-2 py-0.5 rounded border text-slate-600">${c.meterNo}</span>
+                </div>
+            `).join('');
+        }
+
+        function filterMeterCustomers() {
+            renderMeterCustomerList();
+        }
+
+        function selectCustomerForMeter(cusId) {
+            const cus = customers.find(c => c.id === cusId);
+            if (!cus) return;
+
+            activeSelectedCus = cus;
+            document.getElementById('selectedCustomerCard').classList.remove('hidden');
+            document.getElementById('cardName').innerText = cus.name;
+            document.getElementById('cardCusId').innerText = cus.id;
+            document.getElementById('cardMoo').innerText = `หมู่ที่ ${cus.moo}`;
+            document.getElementById('cardMeterNo').innerText = `มิเตอร์: ${cus.meterNo}`;
+            document.getElementById('cardAddress').innerText = cus.address;
+
+            document.getElementById('formCusId').value = cus.id;
+            document.getElementById('prevReading').value = cus.lastReading;
+            document.getElementById('currReading').value = '';
+            
+            calculateWaterBill();
+        }
+
+        function handleMeterSubmit(e) {
+            e.preventDefault();
+            if (!activeSelectedCus) return;
+
+            const prev = parseFloat(document.getElementById('prevReading').value);
+            const curr = parseFloat(document.getElementById('currReading').value);
+            const units = Math.round((curr - prev) * 100) / 100;
+            const waterCost = calculateProgressiveCost(units);
+            const totalAmount = waterCost + appSettings.serviceFee;
+            const billingMonth = document.getElementById('billBillingMonth').value.trim() || 'มีนาคม 2569';
+
+            const newBill = {
+                id: 'BILL-' + String(Date.now()).slice(-4),
+                cusId: activeSelectedCus.id,
+                name: activeSelectedCus.name,
+                moo: activeSelectedCus.moo,
+                month: billingMonth,
+                prevReading: prev,
+                currReading: curr,
+                units: units,
+                waterCost: waterCost,
+                serviceCost: appSettings.serviceFee,
+                totalAmount: totalAmount
+            };
+
+            pendingBills.push(newBill);
+            activeSelectedCus.lastReading = curr;
+            saveDataToLocalStorage();
+
+            const alertBox = document.getElementById('meterAlert');
+            alertBox.className = "mt-4 p-3 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300";
+            alertBox.innerHTML = `<i class="fa-solid fa-circle-check"></i> บันทึกข้อมูลสำเร็จ! สร้างบิลเลขที่ ${newBill.id} ยอดเงิน ${totalAmount.toFixed(2)} บาท`;
+            alertBox.classList.remove('hidden');
+            setTimeout(() => alertBox.classList.add('hidden'), 4000);
+
+            renderUnpaidTable();
+            renderCustomerDirectory();
+            updateKPIs();
+
+            document.getElementById('currReading').value = '';
+            calculateWaterBill();
+        }
+
+        // ==================== TAB 2: PROMPTPAY & EMVCO QR ====================
+        // Standard CRC16-CCITT (0xFFFF polynomial 0x1021)
+        function crc16(data) {
+            let crc = 0xFFFF;
+            for (let i = 0; i < data.length; i++) {
+                let x = ((crc >> 8) ^ data.charCodeAt(i)) & 0xFF;
+                x ^= x >> 4;
+                crc = ((crc << 8) ^ (x << 12) ^ (x << 5) ^ x) & 0xFFFF;
+            }
+            return crc.toString(16).toUpperCase().padStart(4, '0');
+        }
+
+        function generatePromptPayPayload(target, amount) {
+            target = target.replace(/[^0-9]/g, '');
+            let targetType = target.length >= 13 ? '02' : '01'; // 02: Tax ID (13 digits), 01: Phone (10 digits)
+            let formattedTarget = target;
+            if (targetType === '01') {
+                formattedTarget = '0066' + target.substring(1);
+            }
+            const targetLen = formattedTarget.length.toString().padStart(2, '0');
+            const merchantInfo = `0016A000000677010111${targetType}${targetLen}${formattedTarget}`;
+            const merchantLen = merchantInfo.length.toString().padStart(2, '0');
+
+            let payload = `00020101021229${merchantLen}${merchantInfo}5802TH5303764`;
+            if (amount && Number(amount) > 0) {
+                const amtStr = Number(amount).toFixed(2);
+                payload += `54${amtStr.length.toString().padStart(2, '0')}${amtStr}`;
+            }
+            payload += '6304';
+            return payload + crc16(payload);
+        }
+
+        function renderUnpaidTable() {
+            const tbody = document.getElementById('unpaidBillsTable');
+            const search = document.getElementById('paymentSearchInput').value.toLowerCase();
+
+            const filtered = pendingBills.filter(b => 
+                b.name.toLowerCase().includes(search) || 
+                b.cusId.toLowerCase().includes(search) ||
+                b.id.toLowerCase().includes(search)
+            );
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">ไม่มีรายการแจ้งหนี้รอชำระเงิน</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(b => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-2.5">
+                        <div class="font-bold text-slate-800">${b.name}</div>
+                        <div class="text-[10px] text-slate-400 font-mono">${b.cusId} | ${b.id}</div>
+                    </td>
+                    <td class="p-2.5 font-semibold text-slate-600">หมู่ ${b.moo}</td>
+                    <td class="p-2.5 font-mono">${b.units} หน่วย</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-gov-900">${b.totalAmount.toFixed(2)}</td>
+                    <td class="p-2.5 text-center">
+                        <button onclick="selectBillForPayment('${b.id}')" class="bg-gov-600 hover:bg-gov-700 text-white text-[11px] font-bold py-1 px-2.5 rounded shadow">
+                            ชำระเงิน
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function selectBillForPayment(billId) {
+            const bill = pendingBills.find(b => b.id === billId);
+            if (!bill) return;
+
+            activeSelectedBillForPayment = bill;
+
+            document.getElementById('qrTerminalSelectPrompt').classList.add('hidden');
+            document.getElementById('qrActiveBox').classList.remove('hidden');
+            document.getElementById('qrActionBox').classList.remove('hidden');
+
+            document.getElementById('qrCusName').innerText = bill.name;
+            document.getElementById('qrCusId').innerText = bill.cusId;
+            document.getElementById('qrMonth').innerText = bill.month;
+            document.getElementById('qrAmount').innerText = bill.totalAmount.toFixed(2);
+
+            // Generate valid PromptPay QR with real Checksum
+            const qrPayload = generatePromptPayPayload(appSettings.promptPayId, bill.totalAmount);
+            const canvas = document.getElementById('qrcodeCanvas');
+            canvas.innerHTML = '';
+            new QRCode(canvas, {
+                text: qrPayload,
+                width: 160,
+                height: 160,
+                colorDark : "#0369a1",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.M
+            });
+        }
+
+        function cancelQRSelection() {
+            activeSelectedBillForPayment = null;
+            document.getElementById('qrTerminalSelectPrompt').classList.remove('hidden');
+            document.getElementById('qrActiveBox').classList.add('hidden');
+            document.getElementById('qrActionBox').classList.add('hidden');
+        }
+
+        function confirmPaymentAndIssueReceipt() {
+            if (!activeSelectedBillForPayment) return;
+
+            const bill = activeSelectedBillForPayment;
+            const cus = customers.find(c => c.id === bill.cusId);
+
+            const now = new Date();
+            const payDateStr = `${now.toLocaleDateString('th-TH')} ${now.toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'})}`;
+            const newRecNo = 'REC-2569/' + String(receipts.length + 1).padStart(4, '0');
+
+            const newReceipt = {
+                recNo: newRecNo,
+                bookNo: '2569/01',
+                billId: bill.id,
+                cusId: bill.cusId,
+                cusName: bill.name,
+                moo: bill.moo,
+                address: cus ? cus.address : `หมู่ ${bill.moo} ต.พระซอง`,
+                meterNo: cus ? cus.meterNo : 'M-0000',
+                month: bill.month,
+                prevReading: bill.prevReading,
+                currReading: bill.currReading,
+                units: bill.units,
+                waterCost: bill.waterCost,
+                serviceCost: bill.serviceCost,
+                totalAmount: bill.totalAmount,
+                payDate: payDateStr,
+                channel: 'Thai QR PromptPay',
+                status: 'ACTIVE',
+                voidReason: ''
+            };
+
+            receipts.push(newReceipt);
+            pendingBills = pendingBills.filter(b => b.id !== bill.id);
+            saveDataToLocalStorage();
+
+            renderUnpaidTable();
+            renderPaidReceiptList();
+            renderAuditTable();
+            updateKPIs();
+            cancelQRSelection();
+
+            switchTab('tab-receipt');
+            viewReceiptDetails(newRecNo);
+        }
+
+        // ==================== TAB 3: RECEIPT & THAI BAHT TEXT ====================
+        function thaiBahtText(num) {
+            if (isNaN(num) || num === null) return "ศูนย์บาทถ้วน";
+            num = Math.round(Number(num) * 100) / 100;
+            if (num === 0) return "ศูนย์บาทถ้วน";
+
+            const digits = ["", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า"];
+            const positions = ["", "สิบ", "ร้อย", "พัน", "หมื่น", "แสน", "ล้าน"];
+
+            function convertGroup(nStr) {
+                let res = "";
+                let len = nStr.length;
+                for (let i = 0; i < len; i++) {
+                    let digit = parseInt(nStr[i]);
+                    let pos = len - i - 1;
+                    if (digit !== 0) {
+                        if (pos === 1 && digit === 1) res += "สิบ";
+                        else if (pos === 1 && digit === 2) res += "ยี่สิบ";
+                        else if (pos === 0 && digit === 1 && len > 1 && nStr[len - 2] !== '0') res += "เอ็ด";
+                        else res += digits[digit] + positions[pos];
+                    }
+                }
+                return res;
+            }
+
+            const parts = num.toFixed(2).split(".");
+            const integerPart = parts[0];
+            const decimalPart = parts[1];
+
+            let bahtText = "";
+            if (parseInt(integerPart) > 0) {
+                const rev = integerPart.split('').reverse().join('');
+                const chunks = [];
+                for (let i = 0; i < rev.length; i += 6) {
+                    chunks.push(rev.substr(i, 6).split('').reverse().join(''));
+                }
+                for (let i = chunks.length - 1; i >= 0; i--) {
+                    bahtText += convertGroup(chunks[i]);
+                    if (i > 0 && chunks[i] !== "000000") bahtText += "ล้าน";
+                }
+                bahtText += "บาท";
+            }
+
+            if (parseInt(decimalPart) === 0) {
+                bahtText += "ถ้วน";
+            } else {
+                bahtText += convertGroup(decimalPart) + "สตางค์";
+            }
+
+            return bahtText || "ศูนย์บาทถ้วน";
+        }
+
+        function renderPaidReceiptList() {
+            const container = document.getElementById('paidReceiptsList');
+            const search = document.getElementById('receiptSearchInput').value.toLowerCase();
+
+            const filtered = receipts.filter(r => 
+                r.recNo.toLowerCase().includes(search) || 
+                r.cusName.toLowerCase().includes(search)
+            );
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">ไม่พบใบเสร็จรับเงิน</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(r => `
+                <div onclick="viewReceiptDetails('${r.recNo}')" class="p-3 hover:bg-sky-50 cursor-pointer transition-all flex justify-between items-center text-xs">
+                    <div>
+                        <div class="font-bold text-gov-900">${r.recNo} ${r.status === 'VOID' ? '<span class="text-rose-600">[ยกเลิก]</span>' : ''}</div>
+                        <div class="text-[11px] text-slate-600">${r.cusName}</div>
+                        <div class="text-[10px] text-slate-400">${r.payDate}</div>
+                    </div>
+                    <span class="font-mono font-bold text-emerald-600">${r.totalAmount.toFixed(2)} ฿</span>
+                </div>
+            `).join('');
+
+            if (receipts.length > 0 && !selectedReceiptForView) {
+                viewReceiptDetails(receipts[receipts.length - 1].recNo);
+            }
+        }
+
+        function viewReceiptDetails(recNo) {
+            const rec = receipts.find(r => r.recNo === recNo);
+            if (!rec) return;
+
+            selectedReceiptForView = rec;
+
+            document.getElementById('recBookNo').innerText = rec.bookNo;
+            document.getElementById('recNo').innerText = rec.recNo;
+            document.getElementById('recCusId').innerText = rec.cusId;
+            document.getElementById('recDate').innerText = rec.payDate;
+            document.getElementById('recMonth').innerText = rec.month;
+            document.getElementById('recChannel').innerText = rec.channel;
+            document.getElementById('recCusName').innerText = rec.cusName;
+            document.getElementById('recAddress').innerText = rec.address;
+            document.getElementById('recMeterNo').innerText = rec.meterNo;
+
+            document.getElementById('recPrev').innerText = rec.prevReading;
+            document.getElementById('recCurr').innerText = rec.currReading;
+            document.getElementById('recUnits').innerText = rec.units;
+            document.getElementById('recWaterCost').innerText = rec.waterCost.toFixed(2);
+            document.getElementById('recServiceCost').innerText = rec.serviceCost.toFixed(2);
+            document.getElementById('recTotalCost').innerText = rec.totalAmount.toFixed(2) + ' บาท';
+
+            document.getElementById('recBahtText').innerText = `(-${thaiBahtText(rec.totalAmount)}-)`;
+            document.getElementById('recSignPayer').innerText = rec.cusName;
+        }
+
+        // ==================== TAB 4: AUDIT LOG & VOID ====================
+        function renderAuditTable() {
+            const tbody = document.getElementById('auditTableBody');
+
+            if (receipts.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400">ยังไม่มีประวัติใบเสร็จรับเงิน</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = receipts.map(r => `
+                <tr class="hover:bg-slate-50 ${r.status === 'VOID' ? 'bg-rose-50/50' : ''}">
+                    <td class="p-3 font-mono font-bold text-gov-900">${r.recNo}</td>
+                    <td class="p-3 text-slate-600 font-mono">${r.payDate}</td>
+                    <td class="p-3">
+                        <div class="font-bold text-slate-800">${r.cusName}</div>
+                        <div class="text-[10px] text-slate-400">${r.cusId}</div>
+                    </td>
+                    <td class="p-3 text-slate-600">หมู่ ${r.moo}</td>
+                    <td class="p-3 text-right font-mono font-bold ${r.status === 'VOID' ? 'line-through text-slate-400' : 'text-emerald-600'}">${r.totalAmount.toFixed(2)}</td>
+                    <td class="p-3 text-center">
+                        ${r.status === 'ACTIVE' 
+                            ? '<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">ปกติ</span>' 
+                            : '<span class="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded-full">ยกเลิก (Void)</span>'}
+                    </td>
+                    <td class="p-3 text-center">
+                        ${r.status === 'ACTIVE' 
+                            ? `<button onclick="openVoidModal('${r.recNo}')" class="text-rose-600 hover:text-rose-800 font-bold text-xs underline">ยกเลิกใบเสร็จ</button>` 
+                            : `<span class="text-[10px] text-slate-400 italic">เหตุผล: ${r.voidReason}</span>`}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openVoidModal(recNo) {
+            voidTargetRecNoGlobal = recNo;
+            document.getElementById('voidTargetRecNo').innerText = recNo;
+            document.getElementById('voidReasonInput').value = '';
+            document.getElementById('voidModal').showModal();
+        }
+
+        function confirmVoidReceipt() {
+            const reason = document.getElementById('voidReasonInput').value.trim();
+            if (!reason) {
+                alert('กรุณาระบุเหตุผลในการยกเลิกใบเสร็จ');
+                return;
+            }
+
+            const rec = receipts.find(r => r.recNo === voidTargetRecNoGlobal);
+            if (!rec) return;
+
+            rec.status = 'VOID';
+            rec.voidReason = reason;
+
+            // Return to pending bills
+            pendingBills.push({
+                id: rec.billId,
+                cusId: rec.cusId,
+                name: rec.cusName,
+                moo: rec.moo,
+                month: rec.month,
+                prevReading: rec.prevReading,
+                currReading: rec.currReading,
+                units: rec.units,
+                waterCost: rec.waterCost,
+                serviceCost: rec.serviceCost,
+                totalAmount: rec.totalAmount
+            });
+
+            saveDataToLocalStorage();
+            document.getElementById('voidModal').close();
+
+            renderUnpaidTable();
+            renderPaidReceiptList();
+            renderAuditTable();
+            updateKPIs();
+        }
+
+        function exportToCSV() {
+            let csvContent = "\uFEFF"; // UTF-8 BOM for Thai support in MS Excel
+            csvContent += "เลขที่ใบเสร็จ,วันเวลาชำระ,รหัสผู้ใช้,ชื่อผู้ใช้น้ำ,หมู่ที่,จำนวนเงิน,สถานะ,เหตุผลยกเลิก\n";
+
+            receipts.forEach(r => {
+                csvContent += `"${r.recNo}","${r.payDate}","${r.cusId}","${r.cusName}","${r.moo}","${r.totalAmount}","${r.status}","${r.voidReason}"\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `รายงานรับชำระค่าน้ำ_เทศบาลตำบลพระซอง_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // ==================== TAB 5: CUSTOMER DIRECTORY ====================
+        function renderCustomerDirectory() {
+            const tbody = document.getElementById('customerDirectoryBody');
+
+            tbody.innerHTML = customers.map(c => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3 font-mono font-semibold text-gov-900">${c.id}</td>
+                    <td class="p-3 font-bold text-slate-800">${c.name}</td>
+                    <td class="p-3 text-slate-600">หมู่ ${c.moo}</td>
+                    <td class="p-3 font-mono text-slate-600">${c.meterNo}</td>
+                    <td class="p-3 font-mono font-bold text-slate-700">${c.lastReading} หน่วย</td>
+                    <td class="p-3 text-center">
+                        <button onclick="deleteCustomer('${c.id}')" class="text-rose-500 hover:text-rose-700 text-xs"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openAddCustomerModal() {
+            document.getElementById('addCustomerModal').showModal();
+        }
+
+        function handleAddCustomerSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('newCusName').value;
+            const moo = parseInt(document.getElementById('newCusMoo').value);
+            const meter = document.getElementById('newCusMeter').value;
+            const initMeter = parseFloat(document.getElementById('newCusInitMeter').value) || 0;
+
+            const newCus = {
+                id: 'CUS-' + String(customers.length + 1).padStart(3, '0'),
+                name: name,
+                moo: moo,
+                address: `บ้านเลขที่ - หมู่ ${moo} ต.พระซอง`,
+                meterNo: meter,
+                lastReading: initMeter
+            };
+
+            customers.push(newCus);
+            saveDataToLocalStorage();
+
+            renderMeterCustomerList();
+            renderCustomerDirectory();
+            document.getElementById('addCustomerModal').close();
+            document.getElementById('addCustomerForm').reset();
+        }
+
+        function deleteCustomer(id) {
+            if (confirm(`คุณต้องการลบผู้ใช้น้ำรหัส ${id} ใช่หรือไม่?`)) {
+                customers = customers.filter(c => c.id !== id);
+                saveDataToLocalStorage();
+                renderMeterCustomerList();
+                renderCustomerDirectory();
+            }
+        }
+
+        // ==================== TAB 6: SETTINGS & BACKUP ====================
+        function applySettingsToUI() {
+            document.getElementById('headerOrgName').innerText = appSettings.orgName.split(' ')[0] || "เทศบาลตำบลพระซอง";
+            document.getElementById('footerOrgName').innerText = appSettings.orgName;
+            document.getElementById('recOrgFullName').innerText = appSettings.orgName;
+            document.getElementById('recSignOrgTitle').innerText = appSettings.orgName;
+            document.getElementById('recPromptPayDisplay').innerText = appSettings.promptPayId;
+            document.getElementById('qrTerminalHeader').innerText = `รหัส PromptPay: ${appSettings.promptPayId}`;
+
+            document.getElementById('dashRateTier1').innerText = `${appSettings.tier1.toFixed(2)} บาท/หน่วย`;
+            document.getElementById('dashRateTier2').innerText = `${appSettings.tier2.toFixed(2)} บาท/หน่วย`;
+            document.getElementById('dashRateTier3').innerText = `${appSettings.tier3.toFixed(2)} บาท/หน่วย`;
+            document.getElementById('dashServiceFee').innerText = `${appSettings.serviceFee.toFixed(2)} บาท/เดือน`;
+
+            // populate form inputs
+            document.getElementById('setOrgName').value = appSettings.orgName;
+            document.getElementById('setPromptPayId').value = appSettings.promptPayId;
+            document.getElementById('setTier1').value = appSettings.tier1;
+            document.getElementById('setTier2').value = appSettings.tier2;
+            document.getElementById('setTier3').value = appSettings.tier3;
+            document.getElementById('setServiceFee').value = appSettings.serviceFee;
+        }
+
+        function saveAppSettings(e) {
+            e.preventDefault();
+            appSettings.orgName = document.getElementById('setOrgName').value.trim();
+            appSettings.promptPayId = document.getElementById('setPromptPayId').value.trim();
+            appSettings.tier1 = parseFloat(document.getElementById('setTier1').value) || 5;
+            appSettings.tier2 = parseFloat(document.getElementById('setTier2').value) || 8;
+            appSettings.tier3 = parseFloat(document.getElementById('setTier3').value) || 10;
+            appSettings.serviceFee = parseFloat(document.getElementById('setServiceFee').value) || 10;
+
+            saveDataToLocalStorage();
+            applySettingsToUI();
+            alert('บันทึกการตั้งค่าระบบเรียบร้อยแล้ว');
+        }
+
+        function downloadJsonBackup() {
+            const backupData = {
+                timestamp: new Date().toISOString(),
+                settings: appSettings,
+                customers: customers,
+                bills: pendingBills,
+                receipts: receipts
+            };
+            const jsonStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+            const dl = document.createElement('a');
+            dl.setAttribute("href", jsonStr);
+            dl.setAttribute("download", `Waterworks_Backup_${new Date().toISOString().slice(0,10)}.json`);
+            dl.click();
+        }
+
+        function importJsonBackup(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if (data.customers && data.settings) {
+                        appSettings = data.settings;
+                        customers = data.customers;
+                        pendingBills = data.bills || [];
+                        receipts = data.receipts || [];
+                        saveDataToLocalStorage();
+                        applySettingsToUI();
+                        renderMeterCustomerList();
+                        renderUnpaidTable();
+                        renderPaidReceiptList();
+                        renderAuditTable();
+                        renderCustomerDirectory();
+                        updateKPIs();
+                        alert('นำเข้าข้อมูลสำรองสำเร็จแล้ว!');
+                    } else {
+                        alert('รูปแบบไฟล์ JSON ไม่ถูกต้อง');
+                    }
+                } catch (err) {
+                    alert('เกิดข้อผิดพลาดในการอ่านไฟล์: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function resetDefaultData() {
+            if (confirm('คุณต้องการรีเซ็ตข้อมูลทั้งหมดกลับเป็นค่าเริ่มต้นตัวอย่างหรือไม่? (ข้อมูลที่บันทึกไว้จะหายไป)')) {
+                localStorage.clear();
+                appSettings = DEFAULT_SETTINGS;
+                customers = SEED_CUSTOMERS;
+                pendingBills = SEED_BILLS;
+                receipts = [];
+                saveDataToLocalStorage();
+                applySettingsToUI();
+                renderMeterCustomerList();
+                renderUnpaidTable();
+                renderPaidReceiptList();
+                renderAuditTable();
+                renderCustomerDirectory();
+                updateKPIs();
+                alert('รีเซ็ตข้อมูลสำเร็จ');
+            }
+        }
+
+        function updateKPIs() {
+            const activeReceipts = receipts.filter(r => r.status === 'ACTIVE');
+            const totalIncome = activeReceipts.reduce((sum, r) => sum + r.totalAmount, 0);
+
+            document.getElementById('dashTodayIncome').innerText = totalIncome.toFixed(2) + ' ฿';
+            document.getElementById('dashPaidCount').innerText = activeReceipts.length + ' ราย';
+            document.getElementById('dashUnpaidCount').innerText = pendingBills.length + ' ราย';
+            document.getElementById('dashMonthlyIncome').innerText = totalIncome.toFixed(2) + ' ฿';
+        }
+    </script>
+</body>
+</html>
